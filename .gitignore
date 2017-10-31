@@ -8,6 +8,8 @@ net_iter*
 *.hdf
 *.h5
 *.hdf5
+*.ipynb
+core
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

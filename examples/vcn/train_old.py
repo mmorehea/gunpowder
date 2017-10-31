@@ -30,46 +30,25 @@ def train():
     request = BatchRequest()
     request.add_volume_request(VolumeTypes.RAW, (84,268,268))
     request.add_volume_request(VolumeTypes.GT_LABELS, (56,56,56))
-    request.add_volume_request(VolumeTypes.GT_MASK, (56,56,56))
-    request.add_volume_request(VolumeTypes.GT_IGNORE, (56,56,56))
     request.add_volume_request(VolumeTypes.GT_AFFINITIES, (56,56,56))
+    request.add_volume_request(VolumeTypes.LOSS_SCALE, (56,56,56))
 
     data_sources = tuple([
         Hdf5Source(
-            'sample_'+s+'_padded_20160501.aligned.filled.cropped.hdf',
+            '/groups/turaga/home/moreheadm/code/gunpowder/examples/vcn/VCN_train1.hdf5',
             datasets = {
-                VolumeTypes.RAW: 'volumes/raw',
-                VolumeTypes.GT_LABELS: 'volumes/labels/neuron_ids_notransparency',
-                VolumeTypes.GT_MASK: 'volumes/labels/mask',
+                VolumeTypes.RAW: 'volume/raw',
+                VolumeTypes.GT_LABELS: 'volume/labels',
+                
             }
         ) +
         Normalize() +
         RandomLocation()
-        for s in ['A', 'B', 'C']]
-    )
-
-    artifact_source = (
-        Hdf5Source(
-            'sample_ABC_padded_20160501.defects.hdf',
-            datasets = {
-                VolumeTypes.RAW: 'defect_sections/raw',
-                VolumeTypes.ALPHA_MASK: 'defect_sections/mask',
-            }
-        ) +
-        RandomLocation(min_masked=0.05, mask_volume_type=VolumeTypes.ALPHA_MASK) +
-        Normalize() +
-        IntensityAugment(0.9, 1.1, -0.1, 0.1, z_section_wise=True) +
-        ElasticAugment([4,40,40], [0,2,2], [0,math.pi/2.0]) +
-        SimpleAugment(transpose_only_xy=True)
-    )
-
-    snapshot_request = BatchRequest()
-    snapshot_request.add_volume_request(VolumeTypes.LOSS_GRADIENT, (56,56,56))
+    ])
 
     batch_provider_tree = (
         data_sources +
         RandomProvider() +
-        ExcludeLabels([8094], ignore_mask_erode=12) +
         ElasticAugment([4,40,40], [0,2,2], [0,math.pi/2.0], prob_slip=0.05,prob_shift=0.05,max_misalign=25) +
         SimpleAugment(transpose_only_xy=True) +
         GrowBoundary(steps=3, only_xy=True) +
@@ -79,8 +58,6 @@ def train():
         DefectAugment(
             prob_missing=0.03,
             prob_low_contrast=0.01,
-            prob_artifact=0.03,
-            artifact_source=artifact_source,
             contrast_scale=0.1) +
         ZeroOutConstSections() +
         IntensityScaleShift(2,-1) +
@@ -90,7 +67,7 @@ def train():
             cache_size=10,
             num_workers=5) +
         Train(solver_parameters, use_gpu=0) +
-        Snapshot(every=10, output_filename='batch_{id}.hdf', additional_request=snapshot_request)
+        Snapshot(every=10, output_filename='batch_{id}.hdf')
     )
 
     n = 10
